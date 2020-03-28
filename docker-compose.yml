@@ -1,0 +1,83 @@
+version: '2'
+
+services:
+  mongodb:
+    image: mongo:3
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.8.2
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=localhost
+      - network.host=0.0.0.0
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+
+  logstash:
+    container_name: logstash_one_channel
+    #image: docker.elastic.co/logstash/logstash:6.3.2
+    build:
+      context: .
+    environment:
+      XPACK_MONITORING_ENABLED: "false"
+    ports:
+      - 12201:12201/udp
+    volumes:
+      - ./config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./config/pipelines:/usr/share/logstash/config/pipelines:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+
+  graylog:
+    image: graylog/graylog:3.1
+    volumes:
+      - graylog_journal:/usr/share/graylog/data/journal
+      - graylog_config:/usr/share/graylog/data/config
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=50bedf851319305b078a398772eaeb1a
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918 # password: admin
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+    links:
+      - logstash
+      - mongodb:mongo
+      - elasticsearch
+    depends_on:
+      - mongodb
+      - elasticsearch
+    ports:
+      - 9000:9000
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+
+volumes:
+  mongo_data:
+    driver: local
+  es_data:
+    driver: local
+  graylog_journal:
+    driver: local
+  graylog_config:
+    driver: local
