@@ -33,7 +33,6 @@ services:
 
   logstash:
     container_name: logstash_one_channel
-    #image: docker.elastic.co/logstash/logstash:6.3.2
     build:
       context: .
     environment:
